@@ -10,7 +10,10 @@ using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using CryptolioAPI.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace CryptolioAPI
 {
@@ -32,6 +35,9 @@ namespace CryptolioAPI
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "CryptolioAPI", Version = "v1" });
             });
+            string connection = Configuration.GetConnectionString("DefaultConnection");
+            services.AddDbContext<ApplicationContext>(optinos =>
+                optinos.UseSqlServer(connection));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
