@@ -1,11 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using AutoWrapper.Wrappers;
 using CryptolioAPI.Dtos;
 using CryptolioAPI.Models;
+using CryptolioAPI.Models.Additional;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using static System.Int32;
 
 namespace CryptolioAPI.Controllers
 {
@@ -23,132 +29,196 @@ namespace CryptolioAPI.Controllers
         /// <summary>
         /// Получить данные о портфелях пользователя
         /// </summary>
-        /// <param name="user_id"></param>
         /// <returns></returns>
         [HttpGet("user_portfolios")]
-        public ActionResult<IEnumerable<PortfolioDto>>
-            GetUsersPortfolio(int user_id) //user_id - temporary solution until jwt will be included
+        [Authorize]
+        public async Task<ApiResponse>
+            GetUsersPortfolio()
         {
-            return db.Portfolios.Where(portfolio => portfolio.UserId == user_id).Include(x => x.User).Select(portfolio => portfolio.AsDto())
-                .ToList();
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
+            {
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userID = currentUser.Id;
+            var data = db.Portfolios.Where(portfolio => portfolio.UserId == userID).Include(x => x.User)
+                .Select(portfolio => portfolio.AsDto())
+                .ToListAsync().Result;
+            return new ApiResponse("", data);
         }
 
         /// <summary>
         /// Создать новый портфель
         /// </summary>
-        /// <param name="name"></param>
-        /// <param name="user_id"></param>
+        /// <param name="dataCreate"></param>
         /// <returns></returns>
         [HttpPost("create")]
-        public ActionResult<PortfolioDto>
-            CreatePortfolio(string name, int user_id) //user_id - temporary solution until jwt will be included
+        [Authorize]
+        public async Task<ApiResponse>
+            CreatePortfolio(
+                [FromBody] PortfolioCreate dataCreate)
         {
-            if (db.Portfolios.Include(x => x.User).SingleOrDefault(portfolio =>
-                portfolio.User.Id == user_id && portfolio.PortfolioName == name) is not null)
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
             {
-                return Conflict("Portfolio with given name already exists");
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userId = currentUser.Id;
+            if (db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(portfolio =>
+                portfolio.User.Id == userId && portfolio.PortfolioName == dataCreate.Name).Result is not null)
+            {
+                throw new ApiException("Portfolio with given name already exists");
             }
 
             var portfolio = new Portfolio()
             {
-                UserId = user_id,
-                PortfolioName = name
+                UserId = userId,
+                PortfolioName = dataCreate.Name
             };
             db.Portfolios.Add(portfolio);
-            db.SaveChanges();
+            await db.SaveChangesAsync();
 
-            portfolio = db.Portfolios.Include(x => x.User).SingleOrDefault(x => x.Id == portfolio.Id);
-            return portfolio.AsDto();
+            portfolio = db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(x => x.Id == portfolio.Id).Result;
+            return new ApiResponse("", portfolio.AsDto());
         }
 
         /// <summary>
         /// Удалить портфель
         /// </summary>
-        /// <param name="portfolio_id"></param>
-        /// <param name="user_id"></param>
+        /// <param name="dataDelete"></param>
         /// <returns></returns>
         [HttpPost("delete")]
-        public ActionResult
-            DeletePortfolio(int portfolio_id, int user_id) ////user_id - temporary solution until jwt will be included
+        [Authorize]
+        public async Task<ApiResponse>
+            DeletePortfolio(
+                [FromBody] PortfolioDelete dataDelete)
         {
-            var portfolio = db.Portfolios.SingleOrDefault(x => x.Id == portfolio_id && x.UserId == user_id);
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
+            {
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userId = currentUser.Id;
+            var portfolio = db.Portfolios
+                .SingleOrDefaultAsync(x => x.Id == dataDelete.PortfolioId && x.UserId == userId).Result;
             if (portfolio is null)
             {
-                return Conflict("Error with deleting portfolio");
+                throw new ApiException("This portfolio does not exist");
             }
 
             db.Portfolios.Remove(portfolio);
-            return Ok("Portfolio Deleted");
+            await db.SaveChangesAsync();
+            return new ApiResponse("Portfolio Deleted");
         }
 
         /// <summary>
         /// Получить записи в определенном портфеле
         /// </summary>
-        /// <param name="portfolio_id"></param>
+        /// <param name="portfolioId"></param>
         /// <returns></returns>
-        [HttpGet("{portfolio_id}")]
-        public ActionResult<IEnumerable<PortfolioRecordDto>> GetPortfolioInfo(int portfolio_id)
+        [HttpGet("{portfolioId}")]
+        [Authorize]
+        public async Task<ApiResponse> GetPortfolioInfo(int portfolioId)
         {
-            var portfolio = db.Portfolios.Include(x => x.User).SingleOrDefault(x => x.Id == portfolio_id);
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
+            {
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userId = currentUser.Id;
+            var portfolio = db.Portfolios.Include(x => x.User)
+                .SingleOrDefaultAsync(x => x.Id == portfolioId && x.UserId == userId).Result;
             if (portfolio is null)
             {
-                return Conflict("Error with getting portfolio");
+                throw new ApiException("This portfolio does not exist");
             }
 
             var records = db.PortfolioRecords.Include(x => x.Portfolio).Include(x => x.Coin)
-                .Where(x => x.Portfolio == portfolio).ToList();
-            return records.Select(x => x.AsDto()).ToList();
+                .Where(x => x.Portfolio == portfolio).ToListAsync().Result;
+            return new ApiResponse("", records.Select(x => x.AsDto()).ToList());
         }
 
         /// <summary>
         /// Добавить запись в портфель
         /// </summary>
-        /// <param name="portfolio_id"></param>
-        /// <param name="coin_id"></param>
-        /// <param name="buytime"></param>
-        /// <param name="buyprice"></param>
-        /// <param name="amount"></param>
-        /// <param name="note"></param>
+        /// <param name="dataAddRecord"></param>
         /// <returns></returns>
-        [HttpPost("{portfolio_id}/add")]
-        public ActionResult AddRecordToPortfolio(int portfolio_id, int coin_id, int buytime, int buyprice, int amount,
-            string note = "")
+        [HttpPost("{portfolioId}/add")]
+        [Authorize]
+        public async Task<ApiResponse> AddRecordToPortfolio([FromBody] PortfolioAddRecord dataAddRecord)
         {
-            var portfolio = db.Portfolios.FirstOrDefault(x => x.Id == portfolio_id);
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
+            {
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userId = currentUser.Id;
+            var portfolio = db.Portfolios
+                .SingleOrDefaultAsync(x => x.Id == dataAddRecord.PortfolioId && x.UserId == userId).Result;
             if (portfolio is null)
             {
-                return Conflict("Error with getting portfolio");
+                throw new ApiException("This portfolio does not exist");
             }
 
             db.PortfolioRecords.Add(new PortfolioRecord()
             {
-                Amount = amount,
-                BuyPrice = buyprice,
-                BuyTime = new DateTime(1970,1,1,0,0,0,0).AddSeconds(buytime),
-                CoinId = coin_id,
-                Notes = note,
-                PortfolioId = portfolio_id
+                Amount = dataAddRecord.Amount,
+                BuyPrice = dataAddRecord.BuyPrice,
+                BuyTime = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(dataAddRecord.BuyTime),
+                CoinId = dataAddRecord.CoinId,
+                Notes = dataAddRecord.Note,
+                PortfolioId = dataAddRecord.PortfolioId
             });
-            db.SaveChanges();
-            return Ok("Record added");
+            await db.SaveChangesAsync();
+            return new ApiResponse("");
         }
 
         /// <summary>
         /// Удалить запись из портфеля
         /// </summary>
-        /// <param name="record_id"></param>
+        /// <param name="recordId"></param>
         /// <returns></returns>
-        [HttpPost("remove_record/{record_id}")]
-        public ActionResult RemoveRecordFromPortfolio(int record_id) // check next if record not assigned with authorized user
+        [HttpPost("remove_record/{recordId}")]
+        [Authorize]
+        public async Task<ApiResponse>
+            RemoveRecordFromPortfolio(int recordId)
         {
-            var record = db.PortfolioRecords.SingleOrDefault(x => x.Id == record_id);
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
+            {
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userId = currentUser.Id;
+            var record = db.PortfolioRecords.Include(x => x.Portfolio)
+                .SingleOrDefaultAsync(x => x.Id == recordId && x.Portfolio.UserId == userId).Result;
             if (record is null)
             {
-                return Conflict("Error with removing record");
+                throw new ApiException("Record not found");
             }
 
             db.PortfolioRecords.Remove(record);
-            return Ok("Record removed");
+            await db.SaveChangesAsync();
+            return new ApiResponse("");
+        }
+
+        private UserJwt GetCurrentUser()
+        {
+            if (HttpContext.User.Identity is ClaimsIdentity identity)
+            {
+                var userClaims = identity.Claims;
+                return new UserJwt()
+                {
+                    Id = Parse(userClaims.SingleOrDefault(x => x.Type == "user_id")?.Value)
+                };
+            }
+
+            return null;
         }
     }
 }

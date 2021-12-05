@@ -7,10 +7,12 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using AutoWrapper.Wrappers;
 using CryptolioAPI.Dtos;
 using CryptolioAPI.Models;
 using CryptolioAPI.Models.Additional;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using static System.Int32;
@@ -19,6 +21,7 @@ namespace CryptolioAPI.Controllers
 {
     [ApiController]
     [Route("users")]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private ApplicationContext db;
@@ -42,18 +45,13 @@ namespace CryptolioAPI.Controllers
         /// <summary>
         /// Получить данные пользователя
         /// </summary>
-        /// <param name="id"></param>
+        /// /// <param name="userId"></param>
         /// <returns></returns>
-        [HttpGet("me")]
+        [HttpGet("{userId}")]
         [Authorize]
-        public ActionResult<UserDto> GetUser()
-        {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                return Conflict("Cant resolve user from jwt");
-            }
-            var user = db.Users.SingleOrDefault(item => item.Id == currentUser.Id);
+        public ActionResult<UserDto> GetUser(int userId)
+        {   
+            var user = db.Users.SingleOrDefault(item => item.Id == userId);
             if (user is null)
             {
                 return NotFound();
@@ -62,57 +60,56 @@ namespace CryptolioAPI.Controllers
             return user.AsDto();
         }
 
+
         /// <summary>
         /// Регистрация
         /// </summary>
-        /// <param name="email"></param>
-        /// <param name="nickname"></param>
-        /// <param name="password"></param>
+        /// <param name="dataRegister"></param>
         /// <returns></returns>
         [HttpPost("register")]
         [AllowAnonymous]
-        public ActionResult<UserSettingsDto> Register(string email, string nickname, string password)
+        public async Task<ApiResponse> Register([FromBody] UserRegister dataRegister)
         {
-            if (db.Users.SingleOrDefault(item => item.Email == email) != null)
+            if (db.Users.SingleOrDefault(item => item.Email == dataRegister.Email) != null)
             {
-                return Conflict("Email already exists");
+                throw new ApiException("Email already exists");
             }
-            if (db.Users.SingleOrDefault(item => item.Nickname == nickname) != null)
+            if (db.Users.SingleOrDefault(item => item.Nickname == dataRegister.Nickname) != null)
             {
-                return Conflict("Nickname already exists");
+                throw new ApiException("Nickname already exists");
             }
 
             User user = new User()
             {
-                Email = email,
-                Nickname = nickname,
-                Password = password,
+                Email = dataRegister.Email,
+                Nickname = dataRegister.Nickname,
+                Password = dataRegister.Password,
                 CreatedOn = DateTime.UtcNow
             };
             db.Users.Add(user);
-            db.SaveChanges();
-            return user.AsDtoSettings();
+            await db.SaveChangesAsync();
+            var token = GenerateJwtToken(user);
+            return new ApiResponse(message: "", result: user.AsDtoSettings());
         }
 
         /// <summary>
         /// Авторизация
         /// </summary>
-        /// <param name="email"></param>
-        /// <param name="password"></param>
+        /// <param name="dataAuth"></param>
         /// <returns></returns>
         [HttpPost("login")]
         [AllowAnonymous]
-        public ActionResult<UserSettingsDto> Authorize(string email, string password)
+        public async Task<ApiResponse> Authorize([FromBody] UserAuth dataAuth)
         {
-            var user = db.Users.SingleOrDefault(user => user.Email == email && user.Password == password);
+            var user = db.Users.SingleOrDefaultAsync(user => user.Email == dataAuth.Email && user.Password == dataAuth.Password).Result;
             if (user == null)
             {
-                return Conflict("Wrong Credentials");
+                throw new ApiException("Wrong credentials");
             }
 
             var token = GenerateJwtToken(user);
             //return user.AsDtoSettings();
-            return Ok(token);
+            return new ApiResponse(message: "Login successful", result: token);
         }
 
         private string GenerateJwtToken(User user)
@@ -122,9 +119,7 @@ namespace CryptolioAPI.Controllers
 
             var claims = new[]
             {
-                new Claim("user_id", user.Id.ToString()),
-                new Claim("email", user.Email),
-                new Claim("nickname", user.Nickname)
+                new Claim("user_id", user.Id.ToString())
             };
 
             var token = new JwtSecurityToken(_config["Jwt:Issuer"],
@@ -133,22 +128,6 @@ namespace CryptolioAPI.Controllers
                 expires: DateTime.Now.AddMinutes(1440),
                 signingCredentials: credentials);
             return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-
-        private UserJwt GetCurrentUser()
-        {
-            if (HttpContext.User.Identity is ClaimsIdentity identity)
-            {
-                var userClaims = identity.Claims;
-                return new UserJwt()
-                {
-                    Email = userClaims.SingleOrDefault(x => x.Type == "email")?.Value,
-                    Id = Parse(userClaims.SingleOrDefault(x => x.Type == "user_id")?.Value),
-                    Nickname = userClaims.SingleOrDefault(x => x.Type == "nickname")?.Value
-                };
-            }
-
-            return null;
         }
     }
 }
