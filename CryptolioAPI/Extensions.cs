@@ -26,16 +26,6 @@ namespace CryptolioAPI
             };
         }
 
-        public static CoinDto AsDto(this Coin user)
-        {
-            return new CoinDto()
-            {
-                Id = user.Id,
-                ShortName = user.ShortName,
-                FullName = user.FullName
-            };
-        }
-
         public static PortfolioDto AsDto(this Portfolio portfolio)
         {
             return new PortfolioDto()
@@ -54,7 +44,7 @@ namespace CryptolioAPI
                 Amount = portfolioRecord.Amount,
                 BuyPrice = portfolioRecord.BuyPrice,
                 BuyTime = portfolioRecord.BuyTime,
-                Coin = portfolioRecord.Coin.AsDto(),
+                CoinId = portfolioRecord.CoinId,
                 Notes = portfolioRecord.Notes,
                 Portfolio = portfolioRecord.Portfolio.AsDto()
             };

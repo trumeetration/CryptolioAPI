@@ -7,6 +7,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using AutoWrapper.Extensions;
 using AutoWrapper.Wrappers;
 using CryptolioAPI.Dtos;
 using CryptolioAPI.Models;
@@ -60,6 +61,27 @@ namespace CryptolioAPI.Controllers
             return user.AsDto();
         }
 
+        /// <summary>
+        /// Получить данные текущего пользователя
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("me")]
+        [Authorize]
+        public ActionResult<UserSettingsDto> GetCurrentUser()
+        {
+            Request.Headers.TryGetValue("Authorization", out var jwtValue);
+            var jwtString = jwtValue.ToString().Replace("Bearer ", "");
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(jwtString);
+            var tokenUserId = token.Claims.Single(x => x.Type == "user_id").Value.ToInt32();
+            var user = db.Users.SingleOrDefault(item => item.Id == tokenUserId);
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            return user.AsDtoSettings();
+        }
 
         /// <summary>
         /// Регистрация
@@ -89,7 +111,7 @@ namespace CryptolioAPI.Controllers
             db.Users.Add(user);
             await db.SaveChangesAsync();
             var token = GenerateJwtToken(user);
-            return new ApiResponse(message: "", result: user.AsDtoSettings());
+            return new ApiResponse(message: "", result: token);
         }
 
         /// <summary>

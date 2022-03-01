@@ -137,7 +137,7 @@ namespace CryptolioAPI.Controllers
                 throw new ApiException("This portfolio does not exist");
             }
 
-            var records = db.PortfolioRecords.Include(x => x.Portfolio).Include(x => x.Coin)
+            var records = db.PortfolioRecords.Include(x => x.Portfolio)
                 .Where(x => x.Portfolio == portfolio).ToListAsync().Result;
             return new ApiResponse("", records.Select(x => x.AsDto()).ToList());
         }
@@ -204,7 +204,7 @@ namespace CryptolioAPI.Controllers
 
             db.PortfolioRecords.Remove(record);
             await db.SaveChangesAsync();
-            return new ApiResponse("");
+            return new ApiResponse("Record removed");
         }
 
         private UserJwt GetCurrentUser()
@@ -214,7 +214,7 @@ namespace CryptolioAPI.Controllers
                 var userClaims = identity.Claims;
                 return new UserJwt()
                 {
-                    Id = Parse(userClaims.SingleOrDefault(x => x.Type == "user_id")?.Value)
+                    Id = Parse(userClaims.SingleOrDefault(x => x.Type == "user_id")?.Value ?? string.Empty)
                 };
             }
 
