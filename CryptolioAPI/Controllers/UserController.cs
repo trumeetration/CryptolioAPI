@@ -109,7 +109,7 @@ namespace CryptolioAPI.Controllers
 
             var token = GenerateJwtToken(user);
             //return user.AsDtoSettings();
-            return new ApiResponse(message: "Login successful", result: token);
+            return new ApiResponse(message: user.Nickname, result: token);
         }
 
         private string GenerateJwtToken(User user)
