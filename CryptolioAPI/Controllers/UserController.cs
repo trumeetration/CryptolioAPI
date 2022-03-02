@@ -84,6 +84,17 @@ namespace CryptolioAPI.Controllers
         }
 
         /// <summary>
+        /// Проверить токен авторизации на валидность
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost("verify")]
+        [Authorize]
+        public ActionResult<UserSettingsDto> VerifyToken()
+        {
+            return GetCurrentUser();
+        }
+
+        /// <summary>
         /// Регистрация
         /// </summary>
         /// <param name="dataRegister"></param>
