@@ -38,9 +38,9 @@ namespace CryptolioAPI.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("all")]
-        public ActionResult<IEnumerable<UserDto>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
-            return db.Users.Select(item => item.AsDto()).ToList();
+            return db.Users.Select(item => item.AsDto()).ToListAsync().Result;
         }
 
         /// <summary>
@@ -50,9 +50,9 @@ namespace CryptolioAPI.Controllers
         /// <returns></returns>
         [HttpGet("{userId}")]
         [Authorize]
-        public ActionResult<UserDto> GetUser(int userId)
+        public async Task<ActionResult<UserDto>> GetUser(int userId)
         {   
-            var user = db.Users.SingleOrDefault(item => item.Id == userId);
+            var user = db.Users.SingleOrDefaultAsync(item => item.Id == userId).Result;
             if (user is null)
             {
                 return NotFound();
@@ -67,14 +67,14 @@ namespace CryptolioAPI.Controllers
         /// <returns></returns>
         [HttpGet("me")]
         [Authorize]
-        public ActionResult<UserSettingsDto> GetCurrentUser()
+        public async Task<ActionResult<UserSettingsDto>> GetCurrentUser()
         {
             Request.Headers.TryGetValue("Authorization", out var jwtValue);
             var jwtString = jwtValue.ToString().Replace("Bearer ", "");
             var handler = new JwtSecurityTokenHandler();
             var token = handler.ReadJwtToken(jwtString);
             var tokenUserId = token.Claims.Single(x => x.Type == "user_id").Value.ToInt32();
-            var user = db.Users.SingleOrDefault(item => item.Id == tokenUserId);
+            var user = db.Users.SingleOrDefaultAsync(item => item.Id == tokenUserId).Result;
             if (user is null)
             {
                 return NotFound();
@@ -89,9 +89,9 @@ namespace CryptolioAPI.Controllers
         /// <returns></returns>
         [HttpPost("verify")]
         [Authorize]
-        public ActionResult<UserSettingsDto> VerifyToken()
+        public async Task<ActionResult<UserSettingsDto>> VerifyToken()
         {
-            return GetCurrentUser();
+            return await GetCurrentUser();
         }
 
         /// <summary>
@@ -103,11 +103,11 @@ namespace CryptolioAPI.Controllers
         [AllowAnonymous]
         public async Task<ApiResponse> Register([FromBody] UserRegister dataRegister)
         {
-            if (db.Users.SingleOrDefault(item => item.Email == dataRegister.Email) != null)
+            if (db.Users.SingleOrDefaultAsync(item => item.Email == dataRegister.Email).Result != null)
             {
                 throw new ApiException("Email already exists");
             }
-            if (db.Users.SingleOrDefault(item => item.Nickname == dataRegister.Nickname) != null)
+            if (db.Users.SingleOrDefaultAsync(item => item.Nickname == dataRegister.Nickname).Result != null)
             {
                 throw new ApiException("Nickname already exists");
             }
