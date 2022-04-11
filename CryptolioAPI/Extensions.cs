@@ -32,7 +32,7 @@ namespace CryptolioAPI
             {
                 Id = portfolio.Id,
                 PortfolioName = portfolio.PortfolioName,
-                User = portfolio.User.AsDto()
+                UserId = portfolio.User.Id
             };
         }
 
