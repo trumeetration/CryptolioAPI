@@ -42,9 +42,9 @@ namespace CryptolioAPI.Controllers
             }
 
             var userID = currentUser.Id;
-            var data = db.Portfolios.Where(portfolio => portfolio.UserId == userID).Include(x => x.User)
+            var data = await db.Portfolios.Where(portfolio => portfolio.UserId == userID).Include(x => x.User)
                 .Select(portfolio => portfolio.AsDto())
-                .ToListAsync().Result;
+                .ToListAsync();
             return new ApiResponse("", data);
         }
 
@@ -83,6 +83,36 @@ namespace CryptolioAPI.Controllers
             portfolio = db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(x => x.Id == portfolio.Id).Result;
             return new ApiResponse("", portfolio.AsDto());
         }
+        
+        /// <summary>
+        /// Редактировать название портфеля
+        /// </summary>
+        /// <param name="dataUpdate"></param>
+        /// <returns></returns>
+        [HttpPost("update")]
+        [Authorize]
+        public async Task<ApiResponse>
+            UpdatePortfolio(
+                [FromBody] PortfolioUpdate dataUpdate)
+        {
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
+            {
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userId = currentUser.Id;
+            var portfolio = db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(portfolio1 =>
+                portfolio1.User.Id == userId && dataUpdate.Id == portfolio1.Id).Result;
+            if (portfolio is null)
+            {
+                throw new ApiException("Wrong data given");
+            }
+
+            portfolio.PortfolioName = dataUpdate.Name;
+            db.SaveChanges();
+            return new ApiResponse("Updated", portfolio.AsDto());
+        }
 
         /// <summary>
         /// Удалить портфель
@@ -102,8 +132,8 @@ namespace CryptolioAPI.Controllers
             }
 
             var userId = currentUser.Id;
-            var portfolio = db.Portfolios
-                .SingleOrDefaultAsync(x => x.Id == dataDelete.PortfolioId && x.UserId == userId).Result;
+            var portfolio = await db.Portfolios
+                .SingleOrDefaultAsync(x => x.Id == dataDelete.PortfolioId && x.UserId == userId);
             if (portfolio is null)
             {
                 throw new ApiException("This portfolio does not exist");
@@ -130,15 +160,16 @@ namespace CryptolioAPI.Controllers
             }
 
             var userId = currentUser.Id;
-            var portfolio = db.Portfolios.Include(x => x.User)
-                .SingleOrDefaultAsync(x => x.Id == portfolioId && x.UserId == userId).Result;
+            var portfolio = await db.Portfolios.Include(x => x.User)
+                .SingleOrDefaultAsync(x => x.Id == portfolioId && x.UserId == userId);
             if (portfolio is null)
             {
                 throw new ApiException("This portfolio does not exist");
             }
 
-            var records = db.PortfolioRecords.Include(x => x.Portfolio)
-                .Where(x => x.Portfolio == portfolio).ToListAsync().Result;
+            var records = await db.PortfolioRecords.Include(x => x.Portfolio)
+                .Where(x => x.Portfolio == portfolio)
+                .ToListAsync();
             return new ApiResponse("", records.Select(x => x.AsDto()).ToList());
         }
 
@@ -158,8 +189,8 @@ namespace CryptolioAPI.Controllers
             }
 
             var userId = currentUser.Id;
-            var portfolio = db.Portfolios
-                .SingleOrDefaultAsync(x => x.Id == dataAddRecord.PortfolioId && x.UserId == userId).Result;
+            var portfolio = await db.Portfolios
+                .SingleOrDefaultAsync(x => x.Id == dataAddRecord.PortfolioId && x.UserId == userId);
             if (portfolio is null)
             {
                 throw new ApiException("This portfolio does not exist");
@@ -195,8 +226,8 @@ namespace CryptolioAPI.Controllers
             }
 
             var userId = currentUser.Id;
-            var record = db.PortfolioRecords.Include(x => x.Portfolio)
-                .SingleOrDefaultAsync(x => x.Id == recordId && x.Portfolio.UserId == userId).Result;
+            var record = await db.PortfolioRecords.Include(x => x.Portfolio)
+                .SingleOrDefaultAsync(x => x.Id == recordId && x.Portfolio.UserId == userId);
             if (record is null)
             {
                 throw new ApiException("Record not found");
