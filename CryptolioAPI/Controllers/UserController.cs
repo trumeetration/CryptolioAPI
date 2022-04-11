@@ -40,7 +40,7 @@ namespace CryptolioAPI.Controllers
         [HttpGet("all")]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
-            return db.Users.Select(item => item.AsDto()).ToListAsync().Result;
+            return await db.Users.Select(item => item.AsDto()).ToListAsync();
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace CryptolioAPI.Controllers
         [Authorize]
         public async Task<ActionResult<UserDto>> GetUser(int userId)
         {   
-            var user = db.Users.SingleOrDefaultAsync(item => item.Id == userId).Result;
+            var user = await db.Users.SingleOrDefaultAsync(item => item.Id == userId);
             if (user is null)
             {
                 return NotFound();
@@ -74,7 +74,7 @@ namespace CryptolioAPI.Controllers
             var handler = new JwtSecurityTokenHandler();
             var token = handler.ReadJwtToken(jwtString);
             var tokenUserId = token.Claims.Single(x => x.Type == "user_id").Value.ToInt32();
-            var user = db.Users.SingleOrDefaultAsync(item => item.Id == tokenUserId).Result;
+            var user = await db.Users.SingleOrDefaultAsync(item => item.Id == tokenUserId);
             if (user is null)
             {
                 return NotFound();
@@ -103,11 +103,11 @@ namespace CryptolioAPI.Controllers
         [AllowAnonymous]
         public async Task<ApiResponse> Register([FromBody] UserRegister dataRegister)
         {
-            if (db.Users.SingleOrDefaultAsync(item => item.Email == dataRegister.Email).Result != null)
+            if (await db.Users.SingleOrDefaultAsync(item => item.Email == dataRegister.Email) != null)
             {
                 throw new ApiException("Email already exists");
             }
-            if (db.Users.SingleOrDefaultAsync(item => item.Nickname == dataRegister.Nickname).Result != null)
+            if (await db.Users.SingleOrDefaultAsync(item => item.Nickname == dataRegister.Nickname) != null)
             {
                 throw new ApiException("Nickname already exists");
             }
@@ -134,7 +134,7 @@ namespace CryptolioAPI.Controllers
         [AllowAnonymous]
         public async Task<ApiResponse> Authorize([FromBody] UserAuth dataAuth)
         {
-            var user = db.Users.SingleOrDefaultAsync(user => user.Email == dataAuth.Email && user.Password == dataAuth.Password).Result;
+            var user = await db.Users.SingleOrDefaultAsync(user => user.Email == dataAuth.Email && user.Password == dataAuth.Password);
             if (user == null)
             {
                 throw new ApiException("Wrong credentials");
