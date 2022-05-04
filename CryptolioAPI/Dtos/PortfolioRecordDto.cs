@@ -11,5 +11,6 @@ namespace CryptolioAPI.Dtos
         public double BuyPrice { get; set; }
         public double Amount { get; set; }
         public string Notes { get; set; }
+        public string RecordType { get; set; }
     }
 }

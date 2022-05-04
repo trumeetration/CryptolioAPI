@@ -46,6 +46,7 @@ namespace CryptolioAPI
                 BuyTime = portfolioRecord.BuyTime,
                 CoinId = portfolioRecord.CoinId,
                 Notes = portfolioRecord.Notes,
+                RecordType = portfolioRecord.RecordType,
                 Portfolio = portfolioRecord.Portfolio.AsDto()
             };
         }

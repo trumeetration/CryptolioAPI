@@ -15,5 +15,6 @@ namespace CryptolioAPI.Models
         [Column("buy_price")] public double BuyPrice { get; set; }
         [Column("amount")] public double Amount { get; set; }
         [Column("notes")] public string Notes { get; set; }
+        [Column("record_type")] public string RecordType { get; set; }
     }
 }
