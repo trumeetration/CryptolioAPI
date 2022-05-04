@@ -41,8 +41,8 @@ namespace CryptolioAPI.Controllers
                 throw new ApiException("Wrong auth data");
             }
 
-            var userID = currentUser.Id;
-            var data = await db.Portfolios.Where(portfolio => portfolio.UserId == userID).Include(x => x.User)
+            var userId = currentUser.Id;
+            var data = await db.Portfolios.Where(portfolio => portfolio.UserId == userId).Include(x => x.User)
                 .Select(portfolio => portfolio.AsDto())
                 .ToListAsync();
             return new ApiResponse("", data);
@@ -67,7 +67,7 @@ namespace CryptolioAPI.Controllers
 
             var userId = currentUser.Id;
             if (db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(portfolio =>
-                portfolio.User.Id == userId && portfolio.PortfolioName == dataCreate.Name).Result is not null)
+                    portfolio.User.Id == userId && portfolio.PortfolioName == dataCreate.Name).Result is not null)
             {
                 throw new ApiException("Portfolio with given name already exists");
             }
@@ -83,7 +83,7 @@ namespace CryptolioAPI.Controllers
             portfolio = db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(x => x.Id == portfolio.Id).Result;
             return new ApiResponse("", portfolio.AsDto());
         }
-        
+
         /// <summary>
         /// Редактировать название портфеля
         /// </summary>
@@ -102,15 +102,15 @@ namespace CryptolioAPI.Controllers
             }
 
             var userId = currentUser.Id;
-            var portfolio = db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(portfolio1 =>
-                portfolio1.User.Id == userId && dataUpdate.Id == portfolio1.Id).Result;
+            var portfolio = await db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(portfolio1 =>
+                portfolio1.User.Id == userId && dataUpdate.Id == portfolio1.Id);
             if (portfolio is null)
             {
                 throw new ApiException("Wrong data given");
             }
 
             portfolio.PortfolioName = dataUpdate.Name;
-            db.SaveChanges();
+            await db.SaveChangesAsync();
             return new ApiResponse("Updated", portfolio.AsDto());
         }
 
@@ -151,7 +151,9 @@ namespace CryptolioAPI.Controllers
         /// <returns></returns>
         [HttpGet("{portfolioId}")]
         [Authorize]
-        public async Task<ApiResponse> GetPortfolioInfo(int portfolioId)
+        public async Task<ApiResponse>
+            GetPortfolioInfo(
+                int portfolioId)
         {
             var currentUser = GetCurrentUser();
             if (currentUser is null)
@@ -180,7 +182,9 @@ namespace CryptolioAPI.Controllers
         /// <returns></returns>
         [HttpPost("{portfolioId}/add")]
         [Authorize]
-        public async Task<ApiResponse> AddRecordToPortfolio([FromBody] PortfolioAddRecord dataAddRecord)
+        public async Task<ApiResponse>
+            AddRecordToPortfolio(
+                [FromBody] PortfolioAddRecord dataAddRecord)
         {
             var currentUser = GetCurrentUser();
             if (currentUser is null)
@@ -196,6 +200,17 @@ namespace CryptolioAPI.Controllers
                 throw new ApiException("This portfolio does not exist");
             }
 
+            var currentTimestamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
+            if (dataAddRecord.BuyTime > currentTimestamp)
+            {
+                throw new ApiException("Wrong buytime was specified");
+            }
+
+            if (dataAddRecord.RecordType is not "buy" and not "sell")
+            {
+                throw new ApiException("Wrong record type was specified");
+            }
+            
             db.PortfolioRecords.Add(new PortfolioRecord()
             {
                 Amount = dataAddRecord.Amount,
@@ -203,10 +218,11 @@ namespace CryptolioAPI.Controllers
                 BuyTime = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(dataAddRecord.BuyTime),
                 CoinId = dataAddRecord.CoinId,
                 Notes = dataAddRecord.Note,
+                RecordType = dataAddRecord.RecordType,
                 PortfolioId = dataAddRecord.PortfolioId
             });
             await db.SaveChangesAsync();
-            return new ApiResponse("");
+            return new ApiResponse("Record added");
         }
 
         /// <summary>
