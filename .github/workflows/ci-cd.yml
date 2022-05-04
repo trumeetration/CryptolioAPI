@@ -9,7 +9,7 @@ env:
   ConnectionStrings__DefaultConnection: ${{ secrets.DB_CONNECTION_STRING }}
   Jwt__Key: ${{ secrets.JWT_KEY }}
   Jwt__Issuer: ${{ secrets.JWT_ISSUER }}
-  Jwt__Audience: ${{ secrets.JWT_AUDIENCE+ }}
+  Jwt__Audience: ${{ secrets.JWT_AUDIENCE }}
 
 jobs:
   deploy:
