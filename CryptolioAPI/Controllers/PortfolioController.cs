@@ -214,12 +214,13 @@ namespace CryptolioAPI.Controllers
             db.PortfolioRecords.Add(new PortfolioRecord()
             {
                 Amount = dataAddRecord.Amount,
-                BuyPrice = dataAddRecord.BuyPrice,
-                BuyTime = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(dataAddRecord.BuyTime),
+                TxPrice = dataAddRecord.BuyPrice,
+                TxTime = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(dataAddRecord.BuyTime),
                 CoinId = dataAddRecord.CoinId,
                 Notes = dataAddRecord.Note,
                 RecordType = dataAddRecord.RecordType,
-                PortfolioId = dataAddRecord.PortfolioId
+                PortfolioId = dataAddRecord.PortfolioId,
+                Status = "live"
             });
             await db.SaveChangesAsync();
             return new ApiResponse("Record added");
