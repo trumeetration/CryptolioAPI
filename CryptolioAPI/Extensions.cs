@@ -42,12 +42,13 @@ namespace CryptolioAPI
             {
                 Id = portfolioRecord.Id,
                 Amount = portfolioRecord.Amount,
-                BuyPrice = portfolioRecord.BuyPrice,
-                BuyTime = portfolioRecord.BuyTime,
+                TxPrice = portfolioRecord.TxPrice,
+                TxTime = portfolioRecord.TxTime,
                 CoinId = portfolioRecord.CoinId,
                 Notes = portfolioRecord.Notes,
                 RecordType = portfolioRecord.RecordType,
-                Portfolio = portfolioRecord.Portfolio.AsDto()
+                Portfolio = portfolioRecord.Portfolio.AsDto(),
+                Status = portfolioRecord.Status
             };
         }
     }
