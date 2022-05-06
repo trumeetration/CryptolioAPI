@@ -5,11 +5,6 @@ on:
   # Triggers the workflow on push request event for the master branch
   push:    
     branches: [master]
-env:
-  ConnectionStrings__DefaultConnection: ${{ secrets.DB_CONNECTION_STRING }}
-  Jwt__Key: ${{ secrets.JWT_KEY }}
-  Jwt__Issuer: ${{ secrets.JWT_ISSUER }}
-  Jwt__Audience: ${{ secrets.JWT_AUDIENCE }}
 
 jobs:
   deploy:
@@ -31,15 +26,35 @@ jobs:
 
       - name: Install dependencies
         run: dotnet restore
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.DB_CONNECTION_STRING }}
+          Jwt__Key: ${{ secrets.JWT_KEY }}
+          Jwt__Issuer: ${{ secrets.JWT_ISSUER }}
+          Jwt__Audience: ${{ secrets.JWT_AUDIENCE }}
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.DB_CONNECTION_STRING }}
+          Jwt__Key: ${{ secrets.JWT_KEY }}
+          Jwt__Issuer: ${{ secrets.JWT_ISSUER }}
+          Jwt__Audience: ${{ secrets.JWT_AUDIENCE }}
 
       # We will output publish files to the folder we previously created
       - name: Publish
         run: dotnet publish -c Release -o /var/www/cryptolio_api
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.DB_CONNECTION_STRING }}
+          Jwt__Key: ${{ secrets.JWT_KEY }}
+          Jwt__Issuer: ${{ secrets.JWT_ISSUER }}
+          Jwt__Audience: ${{ secrets.JWT_AUDIENCE }}
 
       - name: Restart the app
         run: |
           export XDG_RUNTIME_DIR=/run/user/$(id -u)
           systemctl restart cryptolio_api.service
+        env:
+          ConnectionStrings__DefaultConnection: ${{ secrets.DB_CONNECTION_STRING }}
+          Jwt__Key: ${{ secrets.JWT_KEY }}
+          Jwt__Issuer: ${{ secrets.JWT_ISSUER }}
+          Jwt__Audience: ${{ secrets.JWT_AUDIENCE }}
