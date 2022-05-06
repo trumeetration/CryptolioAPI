@@ -15,7 +15,5 @@ namespace CryptolioAPI.Models
         public User User { get; set; }
         [Column("portfolio_name")]
         public string PortfolioName { get; set; }
-        [Column("is_public")] 
-        public bool IsPublic { get; set; }
     }
 }
