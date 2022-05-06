@@ -21,7 +21,7 @@ namespace CryptolioAPI.Models.Additional
         [MinLength(1)]
         [MaxLength(500)]
         public string Note { get; set; }
-        [Required]
-        public string RecordType { get; set; }
+
+        [Required] public string RecordType { get; set; }
     }
 }
