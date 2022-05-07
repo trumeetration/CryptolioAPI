@@ -138,7 +138,7 @@ namespace CryptolioAPI.Controllers
             {
                 throw new ApiException("This portfolio does not exist");
             }
-
+            
             db.Portfolios.Remove(portfolio);
             await db.SaveChangesAsync();
             return new ApiResponse("Portfolio Deleted");
@@ -206,7 +206,7 @@ namespace CryptolioAPI.Controllers
                 throw new ApiException("Wrong buytime was specified");
             }
 
-            if (dataAddRecord.RecordType is not "buy" and not "sell")
+            if (dataAddRecord.RecordType is not "buy" and not "sell" and not "follow")
             {
                 throw new ApiException("Wrong record type was specified");
             }
@@ -227,7 +227,7 @@ namespace CryptolioAPI.Controllers
         }
 
         /// <summary>
-        /// Удалить запись из портфеля
+        /// Поместить в корзину или удалить запись из портфеля
         /// </summary>
         /// <param name="recordId"></param>
         /// <returns></returns>
@@ -250,7 +250,16 @@ namespace CryptolioAPI.Controllers
                 throw new ApiException("Record not found");
             }
 
-            db.PortfolioRecords.Remove(record);
+            switch (record.Status)
+            {
+                case "live":
+                    record.Status = "trash";
+                    break;
+                case "trash":
+                    db.PortfolioRecords.Remove(record);
+                    break;
+            }
+            
             await db.SaveChangesAsync();
             return new ApiResponse("Record removed");
         }
