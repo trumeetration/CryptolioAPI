@@ -138,7 +138,7 @@ namespace CryptolioAPI.Controllers
             {
                 throw new ApiException("This portfolio does not exist");
             }
-            
+
             db.Portfolios.Remove(portfolio);
             await db.SaveChangesAsync();
             return new ApiResponse("Portfolio Deleted");
@@ -210,7 +210,7 @@ namespace CryptolioAPI.Controllers
             {
                 throw new ApiException("Wrong record type was specified");
             }
-            
+
             db.PortfolioRecords.Add(new PortfolioRecord()
             {
                 Amount = dataAddRecord.Amount,
@@ -259,23 +259,44 @@ namespace CryptolioAPI.Controllers
                     db.PortfolioRecords.Remove(record);
                     break;
             }
-            
+
             await db.SaveChangesAsync();
             return new ApiResponse("Record removed");
         }
 
-        private UserJwt GetCurrentUser()
+        /// <summary>
+        /// Удалить все записи по определенной монете в портфеле
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost("remove_coin")]
+        [Authorize]
+        public async Task<ApiResponse> RemoveCoinRecordsFromPortfolio([FromBody] PortfolioRemoveCoin data)
         {
-            if (HttpContext.User.Identity is ClaimsIdentity identity)
+            var userId = GetCurrentUser().Id;
+            var records = await db.PortfolioRecords.Include(x => x.Portfolio)
+                .Where(x => x.Portfolio.UserId == userId
+                            && x.PortfolioId == data.PortfolioId
+                            && x.CoinId == data.CoinId
+                            && x.Status == "live")
+                .ToListAsync();
+            if (records.Count == 0)
             {
-                var userClaims = identity.Claims;
-                return new UserJwt()
-                {
-                    Id = Parse(userClaims.SingleOrDefault(x => x.Type == "user_id")?.Value ?? string.Empty)
-                };
+                throw new ApiException("No records found with given data");
             }
 
-            return null;
+            records.ForEach(x => x.Status = "trash");
+            await db.SaveChangesAsync();
+            return new ApiResponse("Coin transactions were moved to trash bin");
+        }
+
+        private UserJwt GetCurrentUser()
+        {
+            if (HttpContext.User.Identity is not ClaimsIdentity identity) return null;
+            var userClaims = identity.Claims;
+            return new UserJwt()
+            {
+                Id = Parse(userClaims.SingleOrDefault(x => x.Type == "user_id")?.Value ?? string.Empty)
+            };
         }
     }
 }
