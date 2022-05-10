@@ -180,7 +180,7 @@ namespace CryptolioAPI.Controllers
         /// </summary>
         /// <param name="dataAddRecord"></param>
         /// <returns></returns>
-        [HttpPost("{portfolioId}/add")]
+        [HttpPost("add")]
         [Authorize]
         public async Task<ApiResponse>
             AddRecordToPortfolio(
