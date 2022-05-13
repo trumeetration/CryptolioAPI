@@ -17,8 +17,6 @@ namespace CryptolioAPI.Models.Additional
         [Required]
         [Range(0, 9999999999)]
         public double Amount { get; set; }
-        [Required] 
-        [MinLength(1)]
         [MaxLength(500)]
         public string Note { get; set; }
 
