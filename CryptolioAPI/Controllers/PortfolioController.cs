@@ -201,7 +201,7 @@ namespace CryptolioAPI.Controllers
             }
 
             var currentTimestamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
-            if (dataAddRecord.BuyTime > currentTimestamp)
+            if (dataAddRecord.TxTime > currentTimestamp)
             {
                 throw new ApiException("Wrong buytime was specified");
             }
@@ -214,10 +214,10 @@ namespace CryptolioAPI.Controllers
             db.PortfolioRecords.Add(new PortfolioRecord()
             {
                 Amount = dataAddRecord.Amount,
-                TxPrice = dataAddRecord.BuyPrice,
-                TxTime = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(dataAddRecord.BuyTime),
+                TxPrice = dataAddRecord.TxPrice,
+                TxTime = new DateTime(1970, 1, 1, 0, 0, 0, 0).AddSeconds(dataAddRecord.TxTime),
                 CoinId = dataAddRecord.CoinId,
-                Notes = dataAddRecord.Note,
+                Notes = dataAddRecord.Notes,
                 RecordType = dataAddRecord.RecordType,
                 PortfolioId = dataAddRecord.PortfolioId,
                 Status = "live"
@@ -226,6 +226,55 @@ namespace CryptolioAPI.Controllers
             return new ApiResponse("Record added");
         }
 
+        /// <summary>
+        /// Обновить существующую запись в портфеле
+        /// </summary>
+        /// <param name="dataUpdateRecord"></param>
+        /// <returns></returns>
+        /// <exception cref="ApiException"></exception>
+        [HttpPost("update_record")]
+        [Authorize]
+        public async Task<ApiResponse>
+            UpdateRecordInfo(
+                [FromBody] PortfolioUpdateRecord dataUpdateRecord)
+        {
+            var currentUser = GetCurrentUser();
+            if (currentUser is null)
+            {
+                throw new ApiException("Wrong auth data");
+            }
+
+            var userId = currentUser.Id;
+            var record = await db.PortfolioRecords.Include(x => x.Portfolio)
+                .SingleOrDefaultAsync(x => x.Portfolio.UserId == userId && x.Id == dataUpdateRecord.RecordId);
+            if (record is null)
+            {
+                throw new ApiException("Record not found");
+            }
+            
+            var currentTimestamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
+            if (dataUpdateRecord.TxTime > currentTimestamp)
+            {
+                throw new ApiException("Wrong buytime was specified");
+            }
+
+            if (dataUpdateRecord.RecordType is not "buy" and not "sell" and not "follow")
+            {
+                throw new ApiException("Wrong record type was specified");
+            }
+            
+            record.Amount = dataUpdateRecord.Amount;
+            record.Notes = dataUpdateRecord.Notes;
+            record.CoinId = dataUpdateRecord.CoinId;
+            record.RecordType = dataUpdateRecord.RecordType;
+            record.TxPrice = dataUpdateRecord.TxPrice;
+            record.TxTime = Convert.ToDateTime(dataUpdateRecord.TxTime);
+
+            await db.SaveChangesAsync();
+
+            return new ApiResponse("Record updated");
+        }
+        
         /// <summary>
         /// Поместить в корзину или удалить запись из портфеля
         /// </summary>
@@ -249,11 +298,14 @@ namespace CryptolioAPI.Controllers
             {
                 throw new ApiException("Record not found");
             }
-
+            
             switch (record.Status)
             {
                 case "live":
-                    record.Status = "trash";
+                    if (record.RecordType == "follow")
+                        db.PortfolioRecords.Remove(record);
+                    else 
+                        record.Status = "trash";
                     break;
                 case "trash":
                     db.PortfolioRecords.Remove(record);
@@ -283,8 +335,9 @@ namespace CryptolioAPI.Controllers
             {
                 throw new ApiException("No records found with given data");
             }
-
             records.ForEach(x => x.Status = "trash");
+            if (records[0].RecordType == "follow")
+                db.PortfolioRecords.Remove(records[0]);
             await db.SaveChangesAsync();
             return new ApiResponse("Coin transactions were moved to trash bin");
         }
