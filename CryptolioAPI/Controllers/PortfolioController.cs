@@ -335,9 +335,14 @@ namespace CryptolioAPI.Controllers
             {
                 throw new ApiException("No records found with given data");
             }
-            records.ForEach(x => x.Status = "trash");
-            if (records[0].RecordType == "follow")
-                db.PortfolioRecords.Remove(records[0]);
+
+            foreach (var record in records)
+            {
+                if (record.RecordType == "follow")
+                    db.PortfolioRecords.Remove(record);
+                else
+                    record.Status = "trash";
+            }
             await db.SaveChangesAsync();
             return new ApiResponse("Coin transactions were moved to trash bin");
         }
