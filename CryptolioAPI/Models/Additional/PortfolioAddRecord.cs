@@ -10,15 +10,15 @@ namespace CryptolioAPI.Models.Additional
         public string CoinId { get; set; }
         [Required]
         [Timestamp]
-        public int BuyTime { get; set; }
+        public int TxTime { get; set; }
         [Required]
         [Range(0, 9999999999)]
-        public double BuyPrice { get; set; }
+        public double TxPrice { get; set; }
         [Required]
         [Range(0, 9999999999)]
         public double Amount { get; set; }
         [MaxLength(500)]
-        public string Note { get; set; }
+        public string Notes { get; set; }
 
         [Required] public string RecordType { get; set; }
     }
