@@ -35,13 +35,7 @@ namespace CryptolioAPI.Controllers
         public async Task<ApiResponse>
             GetUsersPortfolio()
         {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                throw new ApiException("Wrong auth data");
-            }
-
-            var userId = currentUser.Id;
+            var userId = GetCurrentUser().Id;
             var data = await db.Portfolios.Where(portfolio => portfolio.UserId == userId).Include(x => x.User)
                 .Select(portfolio => portfolio.AsDto())
                 .ToListAsync();
@@ -59,13 +53,7 @@ namespace CryptolioAPI.Controllers
             CreatePortfolio(
                 [FromBody] PortfolioCreate dataCreate)
         {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                throw new ApiException("Wrong auth data");
-            }
-
-            var userId = currentUser.Id;
+            var userId = GetCurrentUser().Id;
             if (db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(portfolio =>
                     portfolio.User.Id == userId && portfolio.PortfolioName == dataCreate.Name).Result is not null)
             {
@@ -95,13 +83,7 @@ namespace CryptolioAPI.Controllers
             UpdatePortfolio(
                 [FromBody] PortfolioUpdate dataUpdate)
         {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                throw new ApiException("Wrong auth data");
-            }
-
-            var userId = currentUser.Id;
+            var userId = GetCurrentUser().Id;
             var portfolio = await db.Portfolios.Include(x => x.User).SingleOrDefaultAsync(portfolio1 =>
                 portfolio1.User.Id == userId && dataUpdate.Id == portfolio1.Id);
             if (portfolio is null)
@@ -125,13 +107,7 @@ namespace CryptolioAPI.Controllers
             DeletePortfolio(
                 [FromBody] PortfolioDelete dataDelete)
         {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                throw new ApiException("Wrong auth data");
-            }
-
-            var userId = currentUser.Id;
+            var userId = GetCurrentUser().Id;
             var portfolio = await db.Portfolios
                 .SingleOrDefaultAsync(x => x.Id == dataDelete.PortfolioId && x.UserId == userId);
             if (portfolio is null)
@@ -186,13 +162,7 @@ namespace CryptolioAPI.Controllers
             AddRecordToPortfolio(
                 [FromBody] PortfolioAddRecord dataAddRecord)
         {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                throw new ApiException("Wrong auth data");
-            }
-
-            var userId = currentUser.Id;
+            var userId = GetCurrentUser().Id;
             var portfolio = await db.Portfolios
                 .SingleOrDefaultAsync(x => x.Id == dataAddRecord.PortfolioId && x.UserId == userId);
             if (portfolio is null)
@@ -238,13 +208,7 @@ namespace CryptolioAPI.Controllers
             UpdateRecordInfo(
                 [FromBody] PortfolioUpdateRecord dataUpdateRecord)
         {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                throw new ApiException("Wrong auth data");
-            }
-
-            var userId = currentUser.Id;
+            var userId = GetCurrentUser().Id;
             var record = await db.PortfolioRecords.Include(x => x.Portfolio)
                 .SingleOrDefaultAsync(x => x.Portfolio.UserId == userId && x.Id == dataUpdateRecord.RecordId);
             if (record is null)
@@ -285,13 +249,7 @@ namespace CryptolioAPI.Controllers
         public async Task<ApiResponse>
             RemoveRecordFromPortfolio(int recordId)
         {
-            var currentUser = GetCurrentUser();
-            if (currentUser is null)
-            {
-                throw new ApiException("Wrong auth data");
-            }
-
-            var userId = currentUser.Id;
+            var userId = GetCurrentUser().Id;
             var record = await db.PortfolioRecords.Include(x => x.Portfolio)
                 .SingleOrDefaultAsync(x => x.Id == recordId && x.Portfolio.UserId == userId);
             if (record is null)
@@ -347,6 +305,30 @@ namespace CryptolioAPI.Controllers
             return new ApiResponse("Coin transactions were moved to trash bin");
         }
 
+        /// <summary>
+        /// Восстановить транзакцию из корзины
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        [HttpPost("recover")]
+        [Authorize]
+        public async Task<ApiResponse> RecoverTransactionFromTrashbin([FromBody] PortfolioRecoverTx data)
+        {
+            var userId = GetCurrentUser().Id;
+            var record = await db.PortfolioRecords
+                .Include(x => x.Portfolio)
+                .SingleOrDefaultAsync(x => x.Portfolio.UserId == userId
+                                           && x.Status == "trash"
+                                           && x.Id == data.RecordId);
+            if (record is null)
+            {
+                throw new ApiException("No record found");
+            }
+
+            record.Status = "live";
+            await db.SaveChangesAsync();
+            return new ApiResponse("Transaction removed from trash");
+        }
         private UserJwt GetCurrentUser()
         {
             if (HttpContext.User.Identity is not ClaimsIdentity identity) return null;
