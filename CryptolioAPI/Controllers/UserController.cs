@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using static System.Int32;
 
 namespace CryptolioAPI.Controllers
 {
@@ -30,17 +31,7 @@ namespace CryptolioAPI.Controllers
             db = context;
             _config = configuration;
         }
-
-        /// <summary>
-        /// Получить список всех пользователей
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("all")]
-        public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
-        {
-            return await db.Users.Select(item => item.AsDto()).ToListAsync();
-        }
-
+        
         /// <summary>
         /// Получить данные пользователя
         /// </summary>
@@ -67,12 +58,8 @@ namespace CryptolioAPI.Controllers
         [Authorize]
         public async Task<ActionResult<UserSettingsDto>> GetCurrentUser()
         {
-            Request.Headers.TryGetValue("Authorization", out var jwtValue);
-            var jwtString = jwtValue.ToString().Replace("Bearer ", "");
-            var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(jwtString);
-            var tokenUserId = token.Claims.Single(x => x.Type == "user_id").Value.ToInt32();
-            var user = await db.Users.SingleOrDefaultAsync(item => item.Id == tokenUserId);
+            var userId = GetCurrentUserJwt().Id;
+            var user = await db.Users.SingleOrDefaultAsync(item => item.Id == userId);
             if (user is null)
             {
                 return NotFound();
@@ -159,6 +146,16 @@ namespace CryptolioAPI.Controllers
                 expires: DateTime.Now.AddMinutes(1440),
                 signingCredentials: credentials);
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+        
+        private UserJwt GetCurrentUserJwt()
+        {
+            if (HttpContext.User.Identity is not ClaimsIdentity identity) return null;
+            var userClaims = identity.Claims;
+            return new UserJwt()
+            {
+                Id = Parse(userClaims.SingleOrDefault(x => x.Type == "user_id")?.Value ?? string.Empty)
+            };
         }
     }
 }
