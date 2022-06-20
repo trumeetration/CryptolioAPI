@@ -164,11 +164,6 @@ namespace CryptolioAPI.Controllers
                 throw new ApiException("This portfolio does not exist");
             }
 
-            var currentTimestamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
-            if (dataAddRecord.TxTime > currentTimestamp)
-            {
-                throw new ApiException("Wrong buytime was specified");
-            }
 
             if (dataAddRecord.RecordType is not "buy" and not "sell" and not "follow")
             {
